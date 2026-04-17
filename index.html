@@ -1,0 +1,1262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NetAdvisor AI – Telecom Intelligence Bot</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0e1a;
+    --surface: #111827;
+    --surface2: #1a2235;
+    --border: #1e2d45;
+    --accent: #00d4ff;
+    --accent2: #0077b6;
+    --accent3: #00ff9d;
+    --text: #e2e8f0;
+    --text-muted: #64748b;
+    --user-bubble: #0077b6;
+    --bot-bubble: #1a2235;
+    --danger: #ff4757;
+    --warning: #ffa502;
+    --font-mono: 'Space Mono', monospace;
+    --font-body: 'DM Sans', sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-body);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* Animated background grid */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: 
+      linear-gradient(rgba(0,212,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,212,255,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* Glow orbs */
+  body::after {
+    content: '';
+    position: fixed;
+    top: -200px;
+    right: -200px;
+    width: 600px;
+    height: 600px;
+    background: radial-gradient(circle, rgba(0,119,182,0.12) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* Header */
+  header {
+    position: relative;
+    z-index: 10;
+    padding: 0 24px;
+    height: 64px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+    background: rgba(10,14,26,0.95);
+    backdrop-filter: blur(12px);
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .logo-icon {
+    width: 36px;
+    height: 36px;
+    background: linear-gradient(135deg, var(--accent2), var(--accent));
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+  }
+
+  .logo-text {
+    font-family: var(--font-mono);
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--accent);
+    letter-spacing: 0.5px;
+  }
+
+  .logo-sub {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  .header-badges {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .badge {
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-family: var(--font-mono);
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    border: 1px solid;
+  }
+
+  .badge-azure { color: var(--accent); border-color: rgba(0,212,255,0.3); background: rgba(0,212,255,0.08); }
+  .badge-live { color: var(--accent3); border-color: rgba(0,255,157,0.3); background: rgba(0,255,157,0.08); }
+  .badge-live::before { content: '● '; font-size: 8px; }
+
+  /* Main layout */
+  .app {
+    position: relative;
+    z-index: 1;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    max-width: 900px;
+    width: 100%;
+    margin: 0 auto;
+    height: calc(100vh - 64px);
+    padding: 0 16px;
+  }
+
+  /* Service status bar */
+  .status-bar {
+    display: flex;
+    gap: 16px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+    overflow-x: auto;
+    scrollbar-width: none;
+    flex-shrink: 0;
+  }
+
+  .status-bar::-webkit-scrollbar { display: none; }
+
+  .status-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    font-family: var(--font-mono);
+    color: var(--text-muted);
+    white-space: nowrap;
+  }
+
+  .status-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--text-muted);
+  }
+
+  .status-dot.active { background: var(--accent3); box-shadow: 0 0 6px var(--accent3); animation: pulse 2s infinite; }
+  .status-dot.warn { background: var(--warning); }
+  .status-dot.error { background: var(--danger); }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+
+  /* Chat area */
+  .chat-area {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+
+  .chat-area::-webkit-scrollbar { width: 4px; }
+  .chat-area::-webkit-scrollbar-track { background: transparent; }
+  .chat-area::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+  /* Welcome screen */
+  .welcome {
+    text-align: center;
+    padding: 40px 20px;
+    animation: fadeIn 0.6s ease;
+  }
+
+  .welcome-icon {
+    width: 72px;
+    height: 72px;
+    background: linear-gradient(135deg, var(--accent2), var(--accent));
+    border-radius: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 36px;
+    margin: 0 auto 20px;
+    box-shadow: 0 0 40px rgba(0,212,255,0.2);
+  }
+
+  .welcome h1 {
+    font-family: var(--font-mono);
+    font-size: 22px;
+    color: var(--accent);
+    margin-bottom: 8px;
+  }
+
+  .welcome p {
+    color: var(--text-muted);
+    font-size: 14px;
+    max-width: 500px;
+    margin: 0 auto 28px;
+    line-height: 1.6;
+  }
+
+  .capability-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    max-width: 580px;
+    margin: 0 auto 28px;
+  }
+
+  .capability-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 12px;
+    text-align: center;
+    transition: all 0.2s;
+  }
+
+  .capability-card:hover {
+    border-color: var(--accent);
+    background: var(--surface2);
+    transform: translateY(-2px);
+  }
+
+  .capability-card .icon { font-size: 24px; margin-bottom: 8px; }
+  .capability-card .title { font-size: 12px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+  .capability-card .desc { font-size: 11px; color: var(--text-muted); line-height: 1.4; }
+
+  .suggestion-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
+    max-width: 620px;
+    margin: 0 auto;
+  }
+
+  .chip {
+    padding: 8px 14px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    font-size: 12px;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: var(--font-body);
+  }
+
+  .chip:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(0,212,255,0.05);
+  }
+
+  /* Messages */
+  .message {
+    display: flex;
+    gap: 12px;
+    animation: slideIn 0.3s ease;
+    max-width: 100%;
+  }
+
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  .message.user { flex-direction: row-reverse; }
+
+  .avatar {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+
+  .avatar.bot { background: linear-gradient(135deg, var(--accent2), var(--accent)); }
+  .avatar.user { background: linear-gradient(135deg, #1e3a5f, #0077b6); }
+
+  .bubble {
+    max-width: 72%;
+    padding: 12px 16px;
+    border-radius: 16px;
+    font-size: 14px;
+    line-height: 1.6;
+  }
+
+  .message.bot .bubble {
+    background: var(--bot-bubble);
+    border: 1px solid var(--border);
+    border-top-left-radius: 4px;
+    color: var(--text);
+  }
+
+  .message.user .bubble {
+    background: var(--user-bubble);
+    border-top-right-radius: 4px;
+    color: white;
+  }
+
+  .bubble-meta {
+    font-size: 10px;
+    color: var(--text-muted);
+    margin-top: 6px;
+    font-family: var(--font-mono);
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .message.user .bubble-meta { justify-content: flex-end; color: rgba(255,255,255,0.5); }
+
+  .modality-tag {
+    padding: 2px 7px;
+    border-radius: 10px;
+    font-size: 10px;
+    font-family: var(--font-mono);
+    font-weight: 700;
+  }
+
+  .tag-text { background: rgba(0,212,255,0.15); color: var(--accent); }
+  .tag-voice { background: rgba(0,255,157,0.15); color: var(--accent3); }
+  .tag-image { background: rgba(255,165,0,0.15); color: #ffa502; }
+
+  /* Image preview in message */
+  .image-preview {
+    max-width: 280px;
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 8px;
+    border: 1px solid var(--border);
+  }
+
+  .image-preview img {
+    width: 100%;
+    display: block;
+  }
+
+  /* Typing indicator */
+  .typing-indicator {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+  }
+
+  .typing-dots {
+    background: var(--bot-bubble);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    border-top-left-radius: 4px;
+    padding: 14px 18px;
+    display: flex;
+    gap: 5px;
+    align-items: center;
+  }
+
+  .typing-dots span {
+    width: 7px;
+    height: 7px;
+    background: var(--accent);
+    border-radius: 50%;
+    animation: bounce 1.2s infinite;
+  }
+
+  .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+  .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+  @keyframes bounce {
+    0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+    30% { transform: translateY(-6px); opacity: 1; }
+  }
+
+  /* Input area */
+  .input-area {
+    flex-shrink: 0;
+    padding: 16px 0 20px;
+    border-top: 1px solid var(--border);
+  }
+
+  /* Image preview bar */
+  .image-preview-bar {
+    display: none;
+    align-items: center;
+    gap: 10px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 14px;
+    margin-bottom: 10px;
+  }
+
+  .image-preview-bar.visible { display: flex; }
+
+  .preview-thumb {
+    width: 44px;
+    height: 44px;
+    border-radius: 6px;
+    object-fit: cover;
+    border: 1px solid var(--border);
+  }
+
+  .preview-info { flex: 1; }
+  .preview-name { font-size: 12px; font-weight: 600; color: var(--text); }
+  .preview-size { font-size: 11px; color: var(--text-muted); font-family: var(--font-mono); }
+
+  .remove-image {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 18px;
+    padding: 4px;
+    transition: color 0.2s;
+  }
+
+  .remove-image:hover { color: var(--danger); }
+
+  /* Voice recording indicator */
+  .voice-bar {
+    display: none;
+    align-items: center;
+    gap: 12px;
+    background: rgba(0,255,157,0.05);
+    border: 1px solid rgba(0,255,157,0.2);
+    border-radius: 10px;
+    padding: 10px 16px;
+    margin-bottom: 10px;
+  }
+
+  .voice-bar.visible { display: flex; }
+
+  .voice-waveform {
+    display: flex;
+    gap: 3px;
+    align-items: center;
+    height: 24px;
+  }
+
+  .wave-bar {
+    width: 3px;
+    background: var(--accent3);
+    border-radius: 2px;
+    animation: wave 0.8s infinite ease-in-out;
+  }
+
+  .wave-bar:nth-child(1) { height: 8px; animation-delay: 0s; }
+  .wave-bar:nth-child(2) { height: 16px; animation-delay: 0.1s; }
+  .wave-bar:nth-child(3) { height: 12px; animation-delay: 0.2s; }
+  .wave-bar:nth-child(4) { height: 20px; animation-delay: 0.3s; }
+  .wave-bar:nth-child(5) { height: 10px; animation-delay: 0.4s; }
+  .wave-bar:nth-child(6) { height: 18px; animation-delay: 0.5s; }
+  .wave-bar:nth-child(7) { height: 6px; animation-delay: 0.6s; }
+
+  @keyframes wave {
+    0%, 100% { transform: scaleY(0.5); }
+    50% { transform: scaleY(1); }
+  }
+
+  .voice-text { font-size: 13px; color: var(--accent3); font-weight: 500; }
+  .voice-timer { font-family: var(--font-mono); font-size: 12px; color: var(--text-muted); margin-left: auto; }
+
+  /* Input row */
+  .input-row {
+    display: flex;
+    gap: 8px;
+    align-items: flex-end;
+  }
+
+  .input-box {
+    flex: 1;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 12px 16px;
+    color: var(--text);
+    font-family: var(--font-body);
+    font-size: 14px;
+    resize: none;
+    outline: none;
+    transition: border-color 0.2s;
+    min-height: 48px;
+    max-height: 120px;
+    line-height: 1.5;
+  }
+
+  .input-box::placeholder { color: var(--text-muted); }
+  .input-box:focus { border-color: var(--accent2); }
+
+  .action-btn {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text-muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    transition: all 0.2s;
+    flex-shrink: 0;
+  }
+
+  .action-btn:hover { border-color: var(--accent); color: var(--accent); background: rgba(0,212,255,0.05); }
+  .action-btn.active { background: rgba(0,255,157,0.1); border-color: var(--accent3); color: var(--accent3); }
+  .action-btn.send { background: var(--accent2); border-color: var(--accent2); color: white; }
+  .action-btn.send:hover { background: var(--accent); border-color: var(--accent); }
+  .action-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  #file-input { display: none; }
+
+  /* Input hint */
+  .input-hint {
+    display: flex;
+    justify-content: center;
+    gap: 16px;
+    margin-top: 10px;
+  }
+
+  .hint-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11px;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+  }
+
+  .hint-key {
+    padding: 2px 6px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-size: 10px;
+  }
+
+  /* Responsive */
+  @media (max-width: 600px) {
+    .capability-grid { grid-template-columns: 1fr 1fr; }
+    .bubble { max-width: 85%; }
+    .header-badges .badge-azure { display: none; }
+  }
+
+  /* Config modal */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    backdrop-filter: blur(4px);
+    z-index: 100;
+    display: none;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .modal-overlay.visible { display: flex; }
+
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 28px;
+    width: 90%;
+    max-width: 480px;
+    animation: fadeIn 0.2s ease;
+  }
+
+  .modal h2 {
+    font-family: var(--font-mono);
+    font-size: 16px;
+    color: var(--accent);
+    margin-bottom: 6px;
+  }
+
+  .modal p { font-size: 13px; color: var(--text-muted); margin-bottom: 20px; line-height: 1.5; }
+
+  .form-group { margin-bottom: 16px; }
+  .form-label { font-size: 12px; font-family: var(--font-mono); color: var(--text-muted); margin-bottom: 6px; display: block; text-transform: uppercase; letter-spacing: 0.5px; }
+
+  .form-input {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 14px;
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .form-input:focus { border-color: var(--accent2); }
+
+  .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
+
+  .btn-primary {
+    flex: 1;
+    padding: 12px;
+    background: var(--accent2);
+    border: none;
+    border-radius: 10px;
+    color: white;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+
+  .btn-primary:hover { background: var(--accent); }
+
+  .btn-secondary {
+    padding: 12px 20px;
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .btn-secondary:hover { border-color: var(--text-muted); color: var(--text); }
+
+  .disclaimer {
+    font-size: 11px;
+    color: var(--text-muted);
+    background: rgba(255,165,0,0.05);
+    border: 1px solid rgba(255,165,0,0.15);
+    border-radius: 8px;
+    padding: 10px 12px;
+    line-height: 1.5;
+    margin-top: 12px;
+  }
+
+  /* Error toast */
+  .toast {
+    position: fixed;
+    bottom: 100px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--danger);
+    color: white;
+    padding: 10px 20px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-family: var(--font-mono);
+    z-index: 200;
+    display: none;
+    animation: fadeIn 0.2s ease;
+  }
+
+  .toast.visible { display: block; }
+</style>
+</head>
+<body>
+
+<!-- Config Modal -->
+<div class="modal-overlay visible" id="configModal">
+  <div class="modal">
+    <h2>⚙ Configure API Keys</h2>
+    <p>Enter your API credentials to activate all bot capabilities. Keys are stored in your browser session only and never sent to any server except the respective APIs.</p>
+
+    <div class="form-group">
+      <label class="form-label">Claude API Key (LLM Backbone)</label>
+      <input class="form-input" type="password" id="claudeKey" placeholder="sk-ant-api03-..." />
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Azure Computer Vision Endpoint</label>
+      <input class="form-input" type="text" id="cvEndpoint" placeholder="https://your-resource.cognitiveservices.azure.com" />
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Azure Computer Vision Key</label>
+      <input class="form-input" type="password" id="cvKey" placeholder="Your Azure CV Key 1" />
+    </div>
+
+    <div class="disclaimer">
+      ⚠ Azure OpenAI model deployment was unavailable on this subscription due to regional quota restrictions (UAE North, East US 2, Sweden Central all blocked). Claude API is used as the LLM backbone with Azure Computer Vision for image analysis and Browser Web Speech API for voice input.
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="skipConfig()">Skip (Demo Mode)</button>
+      <button class="btn-primary" onclick="saveConfig()">Save & Launch Bot</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<!-- Header -->
+<header>
+  <div class="logo">
+    <div class="logo-icon">📡</div>
+    <div>
+      <div class="logo-text">NetAdvisor AI</div>
+      <div class="logo-sub">Telecom Intelligence Bot</div>
+    </div>
+  </div>
+  <div class="header-badges">
+    <span class="badge badge-azure">Azure CV + Speech</span>
+    <span class="badge badge-live">Live</span>
+  </div>
+</header>
+
+<!-- App -->
+<div class="app">
+
+  <!-- Status Bar -->
+  <div class="status-bar">
+    <div class="status-item">
+      <div class="status-dot active" id="dot-llm"></div>
+      <span id="label-llm">Claude API</span>
+    </div>
+    <div class="status-item">
+      <div class="status-dot warn" id="dot-cv"></div>
+      <span id="label-cv">Azure CV (not configured)</span>
+    </div>
+    <div class="status-item">
+      <div class="status-dot" id="dot-speech"></div>
+      <span>Browser Speech API</span>
+    </div>
+    <div class="status-item">
+      <div class="status-dot error"></div>
+      <span>Azure OpenAI (quota blocked)</span>
+    </div>
+    <div class="status-item">
+      <div class="status-dot error"></div>
+      <span>Azure Static Web App (policy blocked)</span>
+    </div>
+  </div>
+
+  <!-- Chat Area -->
+  <div class="chat-area" id="chatArea">
+    <div class="welcome" id="welcome">
+      <div class="welcome-icon">🛰</div>
+      <h1>NetAdvisor AI</h1>
+      <p>Intelligent Telecom Network Advisory Bot powered by Azure AI Services and Claude LLM. Ask questions via text, voice, or upload network KPI images for analysis.</p>
+
+      <div class="capability-grid">
+        <div class="capability-card">
+          <div class="icon">💬</div>
+          <div class="title">Text Advisory</div>
+          <div class="desc">Ask network questions, get AI-driven recommendations</div>
+        </div>
+        <div class="capability-card">
+          <div class="icon">🎙</div>
+          <div class="title">Voice Input</div>
+          <div class="desc">Speak your query using Browser Web Speech API</div>
+        </div>
+        <div class="capability-card">
+          <div class="icon">🖼</div>
+          <div class="title">Image Analysis</div>
+          <div class="desc">Upload KPI charts for Azure Computer Vision analysis</div>
+        </div>
+      </div>
+
+      <div class="suggestion-chips">
+        <div class="chip" onclick="sendSuggestion(this)">Why is VoLTE drop rate high in cluster?</div>
+        <div class="chip" onclick="sendSuggestion(this)">Best practices for 5G NR congestion management</div>
+        <div class="chip" onclick="sendSuggestion(this)">Analyze RAN KPI degradation root causes</div>
+        <div class="chip" onclick="sendSuggestion(this)">How to optimize SINR for indoor coverage?</div>
+        <div class="chip" onclick="sendSuggestion(this)">Recommend thresholds for silent subscriber detection</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Input Area -->
+  <div class="input-area">
+
+    <!-- Image Preview -->
+    <div class="image-preview-bar" id="imagePreviewBar">
+      <img class="preview-thumb" id="previewThumb" src="" alt="preview" />
+      <div class="preview-info">
+        <div class="preview-name" id="previewName">image.png</div>
+        <div class="preview-size" id="previewSize">0 KB</div>
+      </div>
+      <button class="remove-image" onclick="removeImage()">✕</button>
+    </div>
+
+    <!-- Voice Recording Bar -->
+    <div class="voice-bar" id="voiceBar">
+      <div class="voice-waveform">
+        <div class="wave-bar"></div>
+        <div class="wave-bar"></div>
+        <div class="wave-bar"></div>
+        <div class="wave-bar"></div>
+        <div class="wave-bar"></div>
+        <div class="wave-bar"></div>
+        <div class="wave-bar"></div>
+      </div>
+      <span class="voice-text">Listening...</span>
+      <span class="voice-timer" id="voiceTimer">0:00</span>
+    </div>
+
+    <!-- Input Row -->
+    <div class="input-row">
+      <textarea class="input-box" id="inputBox" placeholder="Ask about network performance, KPIs, recommendations..." rows="1" onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+      <input type="file" id="file-input" accept="image/*" onchange="handleImageUpload(event)" />
+      <button class="action-btn" onclick="document.getElementById('file-input').click()" title="Upload KPI Image">🖼</button>
+      <button class="action-btn" id="voiceBtn" onclick="toggleVoice()" title="Voice Input">🎙</button>
+      <button class="action-btn send" id="sendBtn" onclick="sendMessage()" title="Send">➤</button>
+    </div>
+
+    <div class="input-hint">
+      <span class="hint-item"><span class="hint-key">Enter</span> Send</span>
+      <span class="hint-item"><span class="hint-key">Shift+Enter</span> New line</span>
+      <span class="hint-item">🖼 Image analysis via Azure CV</span>
+      <span class="hint-item">🎙 Voice via Web Speech API</span>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ─── State ───────────────────────────────────────────────────────────────────
+let config = { claudeKey: '', cvEndpoint: '', cvKey: '' };
+let pendingImage = null;
+let pendingImageBase64 = null;
+let isRecording = false;
+let recognition = null;
+let voiceTimerInterval = null;
+let voiceSeconds = 0;
+let conversationHistory = [];
+let demoMode = false;
+
+const SYSTEM_PROMPT = `You are NetAdvisor AI, an intelligent telecom network advisory bot deployed on Omantel's SEAMS (Service Experience Assurance & Management System) platform. You specialize in:
+
+- RAN (Radio Access Network) performance analysis and optimization
+- VoLTE/VoNR quality troubleshooting and KPI recommendations  
+- 4G/5G network congestion analysis and capacity planning
+- Silent subscriber detection and churn prediction
+- Core network (PS/CS) performance and alarm management
+- Network KPI threshold recommendations (SINR, RSRP, drop rates, throughput)
+- Predictive maintenance and anomaly detection in telecom networks
+
+When analyzing images, describe what network KPIs or charts you see and provide actionable recommendations.
+Always provide specific, technical, actionable recommendations. Reference industry standards (3GPP, ITU) where relevant.
+Keep responses concise but technically precise. Use bullet points for recommendations.
+Format key metrics and thresholds in a clear, readable way.`;
+
+// ─── Config ──────────────────────────────────────────────────────────────────
+function saveConfig() {
+  config.claudeKey = document.getElementById('claudeKey').value.trim();
+  config.cvEndpoint = document.getElementById('cvEndpoint').value.trim().replace(/\/$/, '');
+  config.cvKey = document.getElementById('cvKey').value.trim();
+
+  if (!config.claudeKey) { showToast('Claude API key is required'); return; }
+
+  document.getElementById('configModal').classList.remove('visible');
+  updateStatusBar();
+  demoMode = false;
+}
+
+function skipConfig() {
+  demoMode = true;
+  document.getElementById('configModal').classList.remove('visible');
+  showToast('Running in Demo Mode — responses will be simulated');
+}
+
+function updateStatusBar() {
+  if (config.claudeKey) {
+    document.getElementById('dot-llm').className = 'status-dot active';
+  }
+  if (config.cvKey) {
+    document.getElementById('dot-cv').className = 'status-dot active';
+    document.getElementById('label-cv').textContent = 'Azure CV (active)';
+  }
+  document.getElementById('dot-speech').className = 'status-dot active';
+}
+
+// ─── Image Handling ───────────────────────────────────────────────────────────
+function handleImageUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  pendingImage = file;
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    pendingImageBase64 = e.target.result.split(',')[1];
+    document.getElementById('previewThumb').src = e.target.result;
+    document.getElementById('previewName').textContent = file.name;
+    document.getElementById('previewSize').textContent = (file.size / 1024).toFixed(1) + ' KB';
+    document.getElementById('imagePreviewBar').classList.add('visible');
+  };
+  reader.readAsDataURL(file);
+  event.target.value = '';
+}
+
+function removeImage() {
+  pendingImage = null;
+  pendingImageBase64 = null;
+  document.getElementById('imagePreviewBar').classList.remove('visible');
+}
+
+// ─── Voice Input ──────────────────────────────────────────────────────────────
+function toggleVoice() {
+  if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
+    showToast('Voice not supported in this browser. Use Chrome.');
+    return;
+  }
+
+  if (isRecording) {
+    stopVoice();
+  } else {
+    startVoice();
+  }
+}
+
+function startVoice() {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  recognition = new SpeechRecognition();
+  recognition.continuous = false;
+  recognition.interimResults = true;
+  recognition.lang = 'en-US';
+
+  recognition.onstart = () => {
+    isRecording = true;
+    document.getElementById('voiceBtn').classList.add('active');
+    document.getElementById('voiceBar').classList.add('visible');
+    voiceSeconds = 0;
+    voiceTimerInterval = setInterval(() => {
+      voiceSeconds++;
+      const m = Math.floor(voiceSeconds / 60);
+      const s = voiceSeconds % 60;
+      document.getElementById('voiceTimer').textContent = `${m}:${s.toString().padStart(2,'0')}`;
+    }, 1000);
+  };
+
+  recognition.onresult = (event) => {
+    let transcript = '';
+    for (let i = event.resultIndex; i < event.results.length; i++) {
+      transcript += event.results[i][0].transcript;
+    }
+    document.getElementById('inputBox').value = transcript;
+    autoResize(document.getElementById('inputBox'));
+  };
+
+  recognition.onend = () => {
+    stopVoice(true);
+  };
+
+  recognition.onerror = (e) => {
+    stopVoice();
+    showToast('Voice error: ' + e.error);
+  };
+
+  recognition.start();
+}
+
+function stopVoice(autoSend = false) {
+  isRecording = false;
+  if (recognition) recognition.stop();
+  clearInterval(voiceTimerInterval);
+  document.getElementById('voiceBtn').classList.remove('active');
+  document.getElementById('voiceBar').classList.remove('visible');
+
+  if (autoSend && document.getElementById('inputBox').value.trim()) {
+    setTimeout(() => sendMessage('voice'), 300);
+  }
+}
+
+// ─── Messaging ────────────────────────────────────────────────────────────────
+function handleKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendMessage();
+  }
+}
+
+function autoResize(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+}
+
+function sendSuggestion(chip) {
+  document.getElementById('inputBox').value = chip.textContent;
+  sendMessage();
+}
+
+async function sendMessage(modality = 'text') {
+  const input = document.getElementById('inputBox');
+  const text = input.value.trim();
+  const hasImage = pendingImage !== null;
+
+  if (!text && !hasImage) return;
+
+  // Hide welcome
+  const welcome = document.getElementById('welcome');
+  if (welcome) welcome.style.display = 'none';
+
+  // Determine modality
+  let modalityTag = modality;
+  if (hasImage) modalityTag = 'image';
+
+  // Add user message
+  addMessage('user', text, hasImage ? pendingImage.name : null, pendingImageBase64 ? 'data:image/jpeg;base64,' + pendingImageBase64 : null, modalityTag);
+
+  // Clear input
+  input.value = '';
+  input.style.height = 'auto';
+  const imgBase64 = pendingImageBase64;
+  const imgFile = pendingImage;
+  removeImage();
+
+  // Show typing
+  const typingId = showTyping();
+
+  // Build conversation history entry
+  let userContent;
+  if (imgBase64) {
+    userContent = [
+      { type: 'image', source: { type: 'base64', media_type: imgFile.type || 'image/jpeg', data: imgBase64 } },
+      { type: 'text', text: text || 'Please analyze this network KPI image and provide recommendations.' }
+    ];
+  } else {
+    userContent = text;
+  }
+
+  conversationHistory.push({ role: 'user', content: userContent });
+
+  try {
+    let responseText = '';
+
+    if (demoMode) {
+      responseText = getDemoResponse(text, hasImage);
+    } else if (!config.claudeKey) {
+      document.getElementById('configModal').classList.add('visible');
+      removeTyping(typingId);
+      return;
+    } else {
+      // Azure CV analysis for images (if configured)
+      let cvAnalysis = '';
+      if (hasImage && config.cvKey && config.cvEndpoint) {
+        try {
+          cvAnalysis = await analyzeWithAzureCV(imgBase64, imgFile.type);
+        } catch (e) {
+          cvAnalysis = '[Azure CV analysis unavailable]';
+        }
+      }
+
+      // Build messages for Claude
+      let messages = conversationHistory.slice(-10);
+      if (cvAnalysis && hasImage) {
+        // Inject CV analysis as context
+        messages = messages.map((m, i) => {
+          if (i === messages.length - 1 && m.role === 'user') {
+            const lastText = Array.isArray(m.content)
+              ? m.content.find(c => c.type === 'text')?.text || ''
+              : m.content;
+            return {
+              role: 'user',
+              content: Array.isArray(m.content)
+                ? [...m.content.filter(c => c.type === 'image'), { type: 'text', text: `${lastText}\n\n[Azure Computer Vision Analysis]: ${cvAnalysis}` }]
+                : `${lastText}\n\n[Azure Computer Vision Analysis]: ${cvAnalysis}`
+            };
+          }
+          return m;
+        });
+      }
+
+      const response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-api-key': config.claudeKey, 'anthropic-version': '2023-06-01' },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 1000,
+          system: SYSTEM_PROMPT,
+          messages: messages
+        })
+      });
+
+      const data = await response.json();
+      if (data.error) throw new Error(data.error.message);
+      responseText = data.content[0].text;
+    }
+
+    removeTyping(typingId);
+    conversationHistory.push({ role: 'assistant', content: responseText });
+    addMessage('bot', responseText, null, null, 'text');
+
+  } catch (err) {
+    removeTyping(typingId);
+    addMessage('bot', `⚠ Error: ${err.message}`, null, null, 'text');
+  }
+}
+
+// ─── Azure Computer Vision ────────────────────────────────────────────────────
+async function analyzeWithAzureCV(base64, mimeType) {
+  const binaryStr = atob(base64);
+  const bytes = new Uint8Array(binaryStr.length);
+  for (let i = 0; i < binaryStr.length; i++) bytes[i] = binaryStr.charCodeAt(i);
+  const blob = new Blob([bytes], { type: mimeType || 'image/jpeg' });
+
+  const url = `${config.cvEndpoint}/computervision/imageanalysis:analyze?api-version=2023-02-01-preview&features=caption,tags,objects,read`;
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Ocp-Apim-Subscription-Key': config.cvKey, 'Content-Type': mimeType || 'image/jpeg' },
+    body: blob
+  });
+
+  const data = await res.json();
+  let summary = '';
+  if (data.captionResult) summary += `Caption: ${data.captionResult.text}. `;
+  if (data.tagsResult?.values?.length) summary += `Tags: ${data.tagsResult.values.slice(0,8).map(t=>t.name).join(', ')}. `;
+  if (data.readResult?.blocks?.length) {
+    const text = data.readResult.blocks.flatMap(b => b.lines.map(l => l.text)).join(' ');
+    summary += `Detected text: ${text.substring(0, 300)}`;
+  }
+  return summary || 'Image received but no structured data extracted.';
+}
+
+// ─── Demo Responses ───────────────────────────────────────────────────────────
+function getDemoResponse(text, hasImage) {
+  if (hasImage) {
+    return `📊 **Image Analysis (Demo Mode)**\n\nI've received your network KPI image. In live mode with Azure Computer Vision configured, I would:\n\n• Extract all text values and KPI metrics from the chart\n• Identify visual patterns indicating degradation\n• Cross-reference against 3GPP threshold benchmarks\n\n**Demo Recommendation:** Connect Azure Computer Vision API to enable full image analysis. Typical KPIs to watch: RSRP < -110 dBm indicates poor coverage, SINR < 0 dB indicates interference issues, VoLTE drop rate > 2% requires immediate investigation.`;
+  }
+  const t = (text || '').toLowerCase();
+  if (t.includes('volte')) return `📡 **VoLTE Drop Rate Advisory**\n\nHigh VoLTE drop rates typically indicate:\n\n• **SRVCC failure** — Check E-UTRAN to UTRAN handover success rate (target > 98%)\n• **RTP packet loss** — Should be < 1% for acceptable MOS scores\n• **eRAB drop rate** — Investigate if > 0.5% in affected clusters\n• **Interference** — Review DL SINR distribution; SINR < 0 dB in > 10% of samples warrants attention\n\n**Recommended Actions:**\n1. Run neighbor audit on affected cells\n2. Check PRACH configuration for IMS bearer setup failures\n3. Review QCI 1 bearer establishment success rate`;
+  if (t.includes('congestion') || t.includes('5g')) return `📶 **5G NR Congestion Management**\n\nBest practices for 5G NR congestion:\n\n• **PRB Utilization** — Alert threshold: 80%, Critical: 90%\n• **Massive MIMO beamforming** — Ensure beam management reports are optimized\n• **CA (Carrier Aggregation)** — Enable inter-band CA to distribute load\n• **NSA/SA split** — Offload heavy users to NR where RSRP > -100 dBm\n\n**Capacity Planning:** Use Prophet-based traffic forecasting with 30-day look-ahead for proactive capacity augmentation.`;
+  return `🛰 **NetAdvisor AI Response (Demo)**\n\nI'm currently running in demo mode. Configure your Claude API key to receive full AI-powered telecom advisory responses.\n\nYour query: *"${text}"*\n\nIn live mode, I provide:\n• Real-time network KPI analysis\n• Root cause identification\n• 3GPP-aligned threshold recommendations\n• Predictive maintenance advisories\n• VoLTE/RAN/Core troubleshooting guidance`;
+}
+
+// ─── UI Helpers ───────────────────────────────────────────────────────────────
+function addMessage(role, text, imageName, imageDataUrl, modality) {
+  const chatArea = document.getElementById('chatArea');
+  const msg = document.createElement('div');
+  msg.className = `message ${role}`;
+
+  const avatar = document.createElement('div');
+  avatar.className = `avatar ${role}`;
+  avatar.textContent = role === 'bot' ? '🤖' : '👤';
+
+  const bubbleWrap = document.createElement('div');
+
+  if (imageDataUrl) {
+    const imgDiv = document.createElement('div');
+    imgDiv.className = 'image-preview';
+    const img = document.createElement('img');
+    img.src = imageDataUrl;
+    img.alt = imageName || 'uploaded image';
+    imgDiv.appendChild(img);
+    bubbleWrap.appendChild(imgDiv);
+  }
+
+  const bubble = document.createElement('div');
+  bubble.className = 'bubble';
+  bubble.innerHTML = formatText(text);
+
+  const meta = document.createElement('div');
+  meta.className = 'bubble-meta';
+  const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const tagClass = modality === 'voice' ? 'tag-voice' : modality === 'image' ? 'tag-image' : 'tag-text';
+  const tagLabel = modality === 'voice' ? '🎙 voice' : modality === 'image' ? '🖼 image' : '💬 text';
+  meta.innerHTML = `<span class="modality-tag ${tagClass}">${tagLabel}</span><span>${time}</span>`;
+
+  bubble.appendChild(meta);
+  bubbleWrap.appendChild(bubble);
+
+  msg.appendChild(avatar);
+  msg.appendChild(bubbleWrap);
+  chatArea.appendChild(msg);
+  chatArea.scrollTop = chatArea.scrollHeight;
+}
+
+function formatText(text) {
+  if (!text) return '';
+  return text
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    .replace(/`(.+?)`/g, '<code style="background:rgba(0,212,255,0.1);padding:1px 5px;border-radius:4px;font-family:monospace;font-size:12px;">$1</code>')
+    .replace(/^• (.+)$/gm, '<div style="padding-left:12px;margin:2px 0;">• $1</div>')
+    .replace(/^\d+\. (.+)$/gm, '<div style="padding-left:12px;margin:2px 0;">$&</div>')
+    .replace(/\n/g, '<br>');
+}
+
+function showTyping() {
+  const chatArea = document.getElementById('chatArea');
+  const id = 'typing-' + Date.now();
+  const div = document.createElement('div');
+  div.className = 'typing-indicator';
+  div.id = id;
+  div.innerHTML = `
+    <div class="avatar bot">🤖</div>
+    <div class="typing-dots"><span></span><span></span><span></span></div>
+  `;
+  chatArea.appendChild(div);
+  chatArea.scrollTop = chatArea.scrollHeight;
+  return id;
+}
+
+function removeTyping(id) {
+  const el = document.getElementById(id);
+  if (el) el.remove();
+}
+
+function showToast(msg) {
+  const toast = document.getElementById('toast');
+  toast.textContent = msg;
+  toast.classList.add('visible');
+  setTimeout(() => toast.classList.remove('visible'), 3000);
+}
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+// Check Web Speech API availability
+if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+  document.getElementById('dot-speech').className = 'status-dot active';
+}
+</script>
+</body>
+</html>
