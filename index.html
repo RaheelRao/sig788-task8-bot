@@ -843,7 +843,7 @@
         <div class="wave-bar"></div>
         <div class="wave-bar"></div>
       </div>
-      <span class="voice-text">Listening...</span>
+      <span class="voice-text" id="voice-text-label">Listening... (click 🎙 again to stop)</span>
       <span class="voice-timer" id="voiceTimer">0:00</span>
     </div>
 
@@ -859,8 +859,8 @@
     <div class="input-hint">
       <span class="hint-item"><span class="hint-key">Enter</span> Send</span>
       <span class="hint-item"><span class="hint-key">Shift+Enter</span> New line</span>
-      <span class="hint-item">🖼 Image analysis via Azure CV</span>
-      <span class="hint-item">🎙 Voice via Web Speech API</span>
+      <span class="hint-item">🖼 Image → Azure CV analysis</span>
+      <span class="hint-item">🎙 Speak → review → Send</span>
     </div>
   </div>
 
@@ -965,7 +965,7 @@ function toggleVoice() {
 function startVoice() {
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   recognition = new SpeechRecognition();
-  recognition.continuous = false;
+  recognition.continuous = true;
   recognition.interimResults = true;
   recognition.lang = 'en-US';
 
@@ -973,6 +973,7 @@ function startVoice() {
     isRecording = true;
     document.getElementById('voiceBtn').classList.add('active');
     document.getElementById('voiceBar').classList.add('visible');
+    document.getElementById('voice-text-label').textContent = 'Listening... (click 🎙 again to stop)';
     voiceSeconds = 0;
     voiceTimerInterval = setInterval(() => {
       voiceSeconds++;
@@ -992,12 +993,13 @@ function startVoice() {
   };
 
   recognition.onend = () => {
-    stopVoice(true);
+    // Only stop UI — do NOT auto-send, let user confirm
+    stopVoice(false);
   };
 
   recognition.onerror = (e) => {
-    stopVoice();
-    showToast('Voice error: ' + e.error);
+    stopVoice(false);
+    if (e.error !== 'no-speech') showToast('Voice error: ' + e.error);
   };
 
   recognition.start();
@@ -1005,13 +1007,14 @@ function startVoice() {
 
 function stopVoice(autoSend = false) {
   isRecording = false;
-  if (recognition) recognition.stop();
+  if (recognition) { try { recognition.stop(); } catch(e) {} }
   clearInterval(voiceTimerInterval);
   document.getElementById('voiceBtn').classList.remove('active');
   document.getElementById('voiceBar').classList.remove('visible');
 
-  if (autoSend && document.getElementById('inputBox').value.trim()) {
-    setTimeout(() => sendMessage('voice'), 300);
+  const transcribed = document.getElementById('inputBox').value.trim();
+  if (transcribed) {
+    showToast('✓ Voice transcribed — review and press Send to confirm');
   }
 }
 
@@ -1030,7 +1033,7 @@ function autoResize(el) {
 
 function sendSuggestion(chip) {
   document.getElementById('inputBox').value = chip.textContent;
-  sendMessage();
+  sendMessage('text');
 }
 
 async function sendMessage(modality = 'text') {
