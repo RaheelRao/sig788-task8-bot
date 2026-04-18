@@ -703,7 +703,7 @@
   }
 
   .toast.visible { display: block; }
-</style>
+<script src="https://aka.ms/csspeech/jsbrowserpackageraw"></script>
 </head>
 <body>
 
@@ -728,8 +728,18 @@
       <input class="form-input" type="password" id="cvKey" placeholder="Your Azure CV Key 1" />
     </div>
 
+    <div class="form-group">
+      <label class="form-label">Azure Speech Service Key</label>
+      <input class="form-input" type="password" id="speechKey" placeholder="Your Azure Speech Key 1" />
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Azure Speech Service Region</label>
+      <input class="form-input" type="text" id="speechRegion" placeholder="uaenorth" />
+    </div>
+
     <div class="disclaimer">
-      ⚠ Azure OpenAI model deployment was unavailable on this subscription due to regional quota restrictions (UAE North, East US 2, Sweden Central all blocked). OpenAI GPT-4o-mini API is used as the LLM backbone (supports browser-side CORS), with Azure Computer Vision for image analysis and Browser Web Speech API for voice input.
+      ⚠ Azure OpenAI model deployment was unavailable on this subscription due to regional quota restrictions (UAE North, East US 2, Sweden Central all blocked). OpenAI GPT-4o-mini API is used as the LLM backbone. Azure Computer Vision handles image analysis and Azure Speech Service handles voice input.
     </div>
 
     <div class="modal-actions">
@@ -752,7 +762,7 @@
     </div>
   </div>
   <div class="header-badges">
-    <span class="badge badge-azure">Azure CV + OpenAI</span>
+    <span class="badge badge-azure">Azure CV + Speech + OpenAI</span>
     <span class="badge badge-live">Live</span>
   </div>
 </header>
@@ -771,8 +781,8 @@
       <span id="label-cv">Azure CV (not configured)</span>
     </div>
     <div class="status-item">
-      <div class="status-dot" id="dot-speech"></div>
-      <span>Browser Speech API</span>
+      <div class="status-dot warn" id="dot-speech"></div>
+      <span id="label-speech">Azure Speech (not configured)</span>
     </div>
     <div class="status-item">
       <div class="status-dot error"></div>
@@ -868,7 +878,7 @@
 
 <script>
 // ─── State ───────────────────────────────────────────────────────────────────
-let config = { openaiKey: '', cvEndpoint: '', cvKey: '' };
+let config = { openaiKey: '', cvEndpoint: '', cvKey: '', speechKey: '', speechRegion: 'uaenorth' };
 let pendingImage = null;
 let pendingImageBase64 = null;
 let isRecording = false;
@@ -898,6 +908,8 @@ function saveConfig() {
   config.openaiKey = document.getElementById('openaiKey').value.trim();
   config.cvEndpoint = document.getElementById('cvEndpoint').value.trim().replace(/\/$/, '');
   config.cvKey = document.getElementById('cvKey').value.trim();
+  config.speechKey = document.getElementById('speechKey').value.trim();
+  config.speechRegion = document.getElementById('speechRegion').value.trim() || 'uaenorth';
 
   if (!config.openaiKey) { showToast('OpenAI API key is required'); return; }
 
@@ -921,7 +933,10 @@ function updateStatusBar() {
     document.getElementById('dot-cv').className = 'status-dot active';
     document.getElementById('label-cv').textContent = 'Azure CV (active)';
   }
-  document.getElementById('dot-speech').className = 'status-dot active';
+  if (config.speechKey) {
+    document.getElementById('dot-speech').className = 'status-dot active';
+    document.getElementById('label-speech').textContent = 'Azure Speech (active)';
+  }
 }
 
 // ─── Image Handling ───────────────────────────────────────────────────────────
@@ -949,12 +964,10 @@ function removeImage() {
 }
 
 // ─── Voice Input ──────────────────────────────────────────────────────────────
-function toggleVoice() {
-  if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
-    showToast('Voice not supported in this browser. Use Chrome.');
-    return;
-  }
+// ─── Voice Input (Azure Speech SDK) ──────────────────────────────────────────
+let azureRecognizer = null;
 
+function toggleVoice() {
   if (isRecording) {
     stopVoice();
   } else {
@@ -963,6 +976,71 @@ function toggleVoice() {
 }
 
 function startVoice() {
+  if (config.speechKey && typeof SpeechSDK !== 'undefined') {
+    startAzureVoice();
+  } else {
+    startBrowserVoice();
+  }
+}
+
+function startAzureVoice() {
+  try {
+    const speechConfig = SpeechSDK.SpeechConfig.fromSubscription(config.speechKey, config.speechRegion);
+    speechConfig.speechRecognitionLanguage = 'en-US';
+    const audioConfig = SpeechSDK.AudioConfig.fromDefaultMicrophoneInput();
+    azureRecognizer = new SpeechSDK.SpeechRecognizer(speechConfig, audioConfig);
+
+    isRecording = true;
+    document.getElementById('voiceBtn').classList.add('active');
+    document.getElementById('voiceBar').classList.add('visible');
+    document.getElementById('voice-text-label').textContent = 'Azure Speech listening... (click 🎙 to stop)';
+    voiceSeconds = 0;
+    voiceTimerInterval = setInterval(() => {
+      voiceSeconds++;
+      const m = Math.floor(voiceSeconds / 60);
+      const s = voiceSeconds % 60;
+      document.getElementById('voiceTimer').textContent = `${m}:${s.toString().padStart(2,'0')}`;
+    }, 1000);
+
+    let fullTranscript = '';
+
+    azureRecognizer.recognizing = (s, e) => {
+      document.getElementById('inputBox').value = fullTranscript + e.result.text;
+      autoResize(document.getElementById('inputBox'));
+    };
+
+    azureRecognizer.recognized = (s, e) => {
+      if (e.result.reason === SpeechSDK.ResultReason.RecognizedSpeech) {
+        fullTranscript += e.result.text + ' ';
+        document.getElementById('inputBox').value = fullTranscript.trim();
+        autoResize(document.getElementById('inputBox'));
+      }
+    };
+
+    azureRecognizer.canceled = (s, e) => {
+      stopVoiceUI();
+      if (e.reason === SpeechSDK.CancellationReason.Error) {
+        showToast('Azure Speech error: ' + e.errorDetails);
+      }
+    };
+
+    azureRecognizer.sessionStopped = () => { stopVoiceUI(); };
+
+    azureRecognizer.startContinuousRecognitionAsync(
+      () => {},
+      err => { stopVoiceUI(); showToast('Azure Speech failed: ' + err); }
+    );
+  } catch(e) {
+    showToast('Azure Speech init error: ' + e.message);
+    startBrowserVoice();
+  }
+}
+
+function startBrowserVoice() {
+  if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
+    showToast('Voice not supported in this browser. Use Chrome.');
+    return;
+  }
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   recognition = new SpeechRecognition();
   recognition.continuous = true;
@@ -995,7 +1073,6 @@ function startVoice() {
   };
 
   recognition.onend = () => {
-    // If user hasn't manually stopped, restart to maintain continuous listening
     if (isRecording) {
       try { recognition.start(); } catch(e) {}
     } else {
@@ -1005,7 +1082,6 @@ function startVoice() {
 
   recognition.onerror = (e) => {
     if (e.error === 'no-speech' && isRecording) {
-      // Restart silently on no-speech
       try { recognition.start(); } catch(err) {}
     } else if (e.error !== 'aborted') {
       stopVoiceUI();
@@ -1017,6 +1093,7 @@ function startVoice() {
 }
 
 function stopVoiceUI() {
+  isRecording = false;
   clearInterval(voiceTimerInterval);
   document.getElementById('voiceBtn').classList.remove('active');
   document.getElementById('voiceBar').classList.remove('visible');
@@ -1028,8 +1105,13 @@ function stopVoiceUI() {
 
 function stopVoice() {
   isRecording = false;
-  if (recognition) { try { recognition.stop(); } catch(e) {} }
-  stopVoiceUI();
+  if (azureRecognizer) {
+    azureRecognizer.stopContinuousRecognitionAsync(() => { stopVoiceUI(); }, () => { stopVoiceUI(); });
+    azureRecognizer = null;
+  } else if (recognition) {
+    try { recognition.stop(); } catch(e) {}
+    stopVoiceUI();
+  }
 }
 
 // ─── Messaging ────────────────────────────────────────────────────────────────
@@ -1284,10 +1366,7 @@ function showToast(msg) {
 }
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
-// Check Web Speech API availability
-if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-  document.getElementById('dot-speech').className = 'status-dot active';
-}
+// Azure Speech SDK loaded via CDN — status shown after config saved
 </script>
 </body>
 </html>
