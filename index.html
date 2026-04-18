@@ -970,52 +970,66 @@ function startVoice() {
   recognition.lang = 'en-US';
 
   recognition.onstart = () => {
-    isRecording = true;
-    document.getElementById('voiceBtn').classList.add('active');
-    document.getElementById('voiceBar').classList.add('visible');
-    document.getElementById('voice-text-label').textContent = 'Listening... (click 🎙 again to stop)';
-    voiceSeconds = 0;
-    voiceTimerInterval = setInterval(() => {
-      voiceSeconds++;
-      const m = Math.floor(voiceSeconds / 60);
-      const s = voiceSeconds % 60;
-      document.getElementById('voiceTimer').textContent = `${m}:${s.toString().padStart(2,'0')}`;
-    }, 1000);
+    if (!isRecording) {
+      isRecording = true;
+      document.getElementById('voiceBtn').classList.add('active');
+      document.getElementById('voiceBar').classList.add('visible');
+      document.getElementById('voice-text-label').textContent = 'Listening... (click 🎙 again to stop)';
+      voiceSeconds = 0;
+      voiceTimerInterval = setInterval(() => {
+        voiceSeconds++;
+        const m = Math.floor(voiceSeconds / 60);
+        const s = voiceSeconds % 60;
+        document.getElementById('voiceTimer').textContent = `${m}:${s.toString().padStart(2,'0')}`;
+      }, 1000);
+    }
   };
 
   recognition.onresult = (event) => {
-    let transcript = '';
-    for (let i = event.resultIndex; i < event.results.length; i++) {
-      transcript += event.results[i][0].transcript;
+    let fullTranscript = '';
+    for (let i = 0; i < event.results.length; i++) {
+      fullTranscript += event.results[i][0].transcript + ' ';
     }
-    document.getElementById('inputBox').value = transcript;
+    document.getElementById('inputBox').value = fullTranscript.trim();
     autoResize(document.getElementById('inputBox'));
   };
 
   recognition.onend = () => {
-    // Only stop UI — do NOT auto-send, let user confirm
-    stopVoice(false);
+    // If user hasn't manually stopped, restart to maintain continuous listening
+    if (isRecording) {
+      try { recognition.start(); } catch(e) {}
+    } else {
+      stopVoiceUI();
+    }
   };
 
   recognition.onerror = (e) => {
-    stopVoice(false);
-    if (e.error !== 'no-speech') showToast('Voice error: ' + e.error);
+    if (e.error === 'no-speech' && isRecording) {
+      // Restart silently on no-speech
+      try { recognition.start(); } catch(err) {}
+    } else if (e.error !== 'aborted') {
+      stopVoiceUI();
+      showToast('Voice error: ' + e.error);
+    }
   };
 
   recognition.start();
 }
 
-function stopVoice(autoSend = false) {
-  isRecording = false;
-  if (recognition) { try { recognition.stop(); } catch(e) {} }
+function stopVoiceUI() {
   clearInterval(voiceTimerInterval);
   document.getElementById('voiceBtn').classList.remove('active');
   document.getElementById('voiceBar').classList.remove('visible');
-
   const transcribed = document.getElementById('inputBox').value.trim();
   if (transcribed) {
     showToast('✓ Voice transcribed — review and press Send to confirm');
   }
+}
+
+function stopVoice() {
+  isRecording = false;
+  if (recognition) { try { recognition.stop(); } catch(e) {} }
+  stopVoiceUI();
 }
 
 // ─── Messaging ────────────────────────────────────────────────────────────────
