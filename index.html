@@ -1227,11 +1227,15 @@ function addMessage(role, text, imageName, imageDataUrl, modality) {
 function formatText(text) {
   if (!text) return '';
   return text
+    .replace(/^#### (.+)$/gm, '<div style="font-size:13px;font-weight:700;color:var(--accent);margin:10px 0 4px;">$1</div>')
+    .replace(/^### (.+)$/gm, '<div style="font-size:14px;font-weight:700;color:var(--accent);margin:12px 0 6px;">$1</div>')
+    .replace(/^## (.+)$/gm, '<div style="font-size:15px;font-weight:700;color:var(--accent);margin:12px 0 6px;">$1</div>')
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
     .replace(/\*(.+?)\*/g, '<em>$1</em>')
     .replace(/`(.+?)`/g, '<code style="background:rgba(0,212,255,0.1);padding:1px 5px;border-radius:4px;font-family:monospace;font-size:12px;">$1</code>')
-    .replace(/^• (.+)$/gm, '<div style="padding-left:12px;margin:2px 0;">• $1</div>')
-    .replace(/^\d+\. (.+)$/gm, '<div style="padding-left:12px;margin:2px 0;">$&</div>')
+    .replace(/^- (.+)$/gm, '<div style="padding-left:14px;margin:3px 0;">• $1</div>')
+    .replace(/^• (.+)$/gm, '<div style="padding-left:14px;margin:3px 0;">• $1</div>')
+    .replace(/^\d+\. (.+)$/gm, '<div style="padding-left:14px;margin:3px 0;">$&</div>')
     .replace(/\n/g, '<br>');
 }
 
