@@ -684,7 +684,79 @@
     margin-top: 12px;
   }
 
-  /* Error toast */
+  /* Mode toggle */
+  .mode-toggle {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 10px;
+    align-items: center;
+  }
+  .mode-btn {
+    padding: 6px 14px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-weight: 600;
+  }
+  .mode-btn.active-data   { background: rgba(0,212,255,0.15); border-color: var(--accent); color: var(--accent); }
+  .mode-btn.active-adv    { background: rgba(0,255,157,0.15); border-color: var(--accent3); color: var(--accent3); }
+  .mode-btn.active-auto   { background: rgba(100,116,139,0.2); border-color: #64748b; color: #94a3b8; }
+  .mode-label { font-size: 11px; color: var(--text-muted); font-family: var(--font-mono); margin-left: 4px; }
+
+  /* SQL pill */
+  .sql-pill {
+    display: inline-block;
+    background: rgba(0,212,255,0.08);
+    border: 1px solid rgba(0,212,255,0.2);
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: #64748b;
+    margin-bottom: 10px;
+    word-break: break-all;
+    line-height: 1.5;
+  }
+  .sql-pill strong { color: var(--accent); }
+
+  /* Chart container */
+  .chart-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px;
+    margin-top: 10px;
+  }
+
+  /* Data table */
+  .data-table-wrap { overflow-x: auto; margin-top: 10px; }
+  .data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+    font-family: var(--font-mono);
+  }
+  .data-table th {
+    background: rgba(0,212,255,0.08);
+    color: var(--accent);
+    padding: 6px 10px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  .data-table td {
+    padding: 5px 10px;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    color: var(--text);
+    white-space: nowrap;
+  }
+  .data-table tr:hover td { background: rgba(255,255,255,0.03); }
+  .row-count { font-size: 11px; color: var(--text-muted); font-family: var(--font-mono); margin-top: 6px; }
   .toast {
     position: fixed;
     bottom: 100px;
@@ -704,6 +776,7 @@
   .toast.visible { display: block; }
 </style>
 <script src="https://aka.ms/csspeech/jsbrowserpackageraw"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 </head>
 <body>
 
@@ -712,6 +785,11 @@
   <div class="modal">
     <h2>⚙ Configure API Keys</h2>
     <p>Enter your API credentials to activate all bot capabilities. Keys are stored in your browser session only and never sent to any server except the respective APIs.</p>
+
+    <div class="form-group">
+      <label class="form-label">Flask API URL (Carbon DB — internal network only)</label>
+      <input class="form-input" type="text" id="flaskApi" placeholder="http://10.164.5.247:5000" value="http://10.164.5.247:5000" />
+    </div>
 
     <div class="form-group">
       <label class="form-label">OpenAI API Key (GPT-4o-mini LLM)</label>
@@ -785,8 +863,10 @@
       <span id="label-speech">Azure Speech (not configured)</span>
     </div>
     <div class="status-item">
-      <div class="status-dot error"></div>
-      <span>Azure OpenAI (quota blocked)</span>
+      <div class="status-dot warn" id="dot-carbon"></div>
+      <span id="label-carbon">Carbon DB (not tested)</span>
+    </div>
+    <div class="status-item">
     </div>
     <div class="status-item">
       <div class="status-dot error"></div>
@@ -820,11 +900,12 @@
       </div>
 
       <div class="suggestion-chips">
+        <div class="chip" onclick="sendSuggestion(this)">How many subscribers are in the table?</div>
+        <div class="chip" onclick="sendSuggestion(this)">Show average CEI score by region</div>
+        <div class="chip" onclick="sendSuggestion(this)">Top 10 subscribers by 5G traffic last 7 days</div>
         <div class="chip" onclick="sendSuggestion(this)">Why is VoLTE drop rate high in cluster?</div>
         <div class="chip" onclick="sendSuggestion(this)">Best practices for 5G NR congestion management</div>
-        <div class="chip" onclick="sendSuggestion(this)">Analyze RAN KPI degradation root causes</div>
-        <div class="chip" onclick="sendSuggestion(this)">How to optimize SINR for indoor coverage?</div>
-        <div class="chip" onclick="sendSuggestion(this)">Recommend thresholds for silent subscriber detection</div>
+        <div class="chip" onclick="sendSuggestion(this)">Compare 4G vs 5G traffic by willayat</div>
       </div>
     </div>
   </div>
@@ -857,6 +938,14 @@
       <span class="voice-timer" id="voiceTimer">0:00</span>
     </div>
 
+    <!-- Mode Toggle -->
+    <div class="mode-toggle">
+      <button class="mode-btn active-auto" id="modeAuto"     onclick="setMode('auto')"    >🤖 Auto</button>
+      <button class="mode-btn"             id="modeData"     onclick="setMode('data')"    >📊 Data Query</button>
+      <button class="mode-btn"             id="modeAdvisory" onclick="setMode('advisory')">💬 Advisory</button>
+      <span class="mode-label" id="modeLabel">Auto-detecting intent</span>
+    </div>
+
     <!-- Input Row -->
     <div class="input-row">
       <textarea class="input-box" id="inputBox" placeholder="Ask about network performance, KPIs, recommendations..." rows="1" onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
@@ -879,7 +968,8 @@
 
 <script>
 // ─── State ───────────────────────────────────────────────────────────────────
-let config = { openaiKey: '', cvEndpoint: '', cvKey: '', speechKey: '', speechRegion: 'uaenorth' };
+let config = { openaiKey: '', cvEndpoint: '', cvKey: '', speechKey: '', speechRegion: 'uaenorth', flaskApi: 'http://10.164.5.247:5000' };
+let queryMode = 'auto'; // 'auto' | 'data' | 'advisory'
 let pendingImage = null;
 let pendingImageBase64 = null;
 let isRecording = false;
@@ -906,16 +996,18 @@ Format key metrics and thresholds in a clear, readable way.`;
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 function saveConfig() {
-  config.openaiKey = document.getElementById('openaiKey').value.trim();
-  config.cvEndpoint = document.getElementById('cvEndpoint').value.trim().replace(/\/$/, '');
-  config.cvKey = document.getElementById('cvKey').value.trim();
-  config.speechKey = document.getElementById('speechKey').value.trim();
+  config.flaskApi    = (document.getElementById('flaskApi').value.trim()).replace(/\/$/, '') || 'http://10.164.5.247:5000';
+  config.openaiKey   = document.getElementById('openaiKey').value.trim();
+  config.cvEndpoint  = document.getElementById('cvEndpoint').value.trim().replace(/\/$/, '');
+  config.cvKey       = document.getElementById('cvKey').value.trim();
+  config.speechKey   = document.getElementById('speechKey').value.trim();
   config.speechRegion = document.getElementById('speechRegion').value.trim() || 'uaenorth';
 
-  if (!config.openaiKey) { showToast('OpenAI API key is required'); return; }
+  if (!config.openaiKey && !config.flaskApi) { showToast('At minimum, Flask API URL is required'); return; }
 
   document.getElementById('configModal').classList.remove('visible');
   updateStatusBar();
+  pingCarbonApi();
   demoMode = false;
 }
 
@@ -940,7 +1032,43 @@ function updateStatusBar() {
   }
 }
 
-// ─── Image Handling ───────────────────────────────────────────────────────────
+// ─── Carbon API health ping ───────────────────────────────────────────────────
+async function pingCarbonApi() {
+  try {
+    const r = await fetch(`${config.flaskApi}/health`);
+    if (r.ok) {
+      document.getElementById('dot-carbon').className = 'status-dot active';
+      document.getElementById('label-carbon').textContent = 'Carbon DB (connected)';
+    } else { throw new Error(); }
+  } catch {
+    document.getElementById('dot-carbon').className = 'status-dot error';
+    document.getElementById('label-carbon').textContent = 'Carbon DB (unreachable)';
+  }
+}
+
+// ─── Mode toggle ──────────────────────────────────────────────────────────────
+function setMode(mode) {
+  queryMode = mode;
+  document.getElementById('modeAuto').className     = 'mode-btn' + (mode==='auto'     ? ' active-auto' : '');
+  document.getElementById('modeData').className     = 'mode-btn' + (mode==='data'     ? ' active-data' : '');
+  document.getElementById('modeAdvisory').className = 'mode-btn' + (mode==='advisory' ? ' active-adv'  : '');
+  const labels = { auto: 'Auto-detecting intent', data: 'Forced: Carbon DB query', advisory: 'Forced: Advisory only' };
+  document.getElementById('modeLabel').textContent = labels[mode];
+}
+
+// ─── Intent detection ─────────────────────────────────────────────────────────
+const DATA_KEYWORDS = [
+  'show','list','how many','count','top','bottom','average','avg','sum','total',
+  'trend','over time','by date','by region','by willayat','by brand','compare',
+  'highest','lowest','max','min','which subscriber','find subscriber','traffic',
+  'cei score','rsrp','sinr','volte','4g','5g','roaming','vip','payment','region',
+  'rank','group by','breakdown','distribution','last','days','week','month'
+];
+
+function isDataQuery(text) {
+  const t = text.toLowerCase();
+  return DATA_KEYWORDS.some(kw => t.includes(kw));
+}
 function handleImageUpload(event) {
   const file = event.target.files[0];
   if (!file) return;
@@ -1141,109 +1269,209 @@ async function sendMessage(modality = 'text') {
 
   if (!text && !hasImage) return;
 
-  // Hide welcome
   const welcome = document.getElementById('welcome');
   if (welcome) welcome.style.display = 'none';
 
-  // Determine modality
   let modalityTag = modality;
   if (hasImage) modalityTag = 'image';
 
-  // Add user message
   addMessage('user', text, hasImage ? pendingImage.name : null, pendingImageBase64 ? 'data:image/jpeg;base64,' + pendingImageBase64 : null, modalityTag);
 
-  // Clear input
   input.value = '';
   input.style.height = 'auto';
   const imgBase64 = pendingImageBase64;
   const imgFile = pendingImage;
   removeImage();
 
-  // Show typing
   const typingId = showTyping();
 
-  // Build conversation history entry
-  let userContent;
-  if (imgBase64) {
-    userContent = [
-      { type: 'image', source: { type: 'base64', media_type: imgFile.type || 'image/jpeg', data: imgBase64 } },
-      { type: 'text', text: text || 'Please analyze this network KPI image and provide recommendations.' }
-    ];
-  } else {
-    userContent = text;
-  }
-
+  let userContent = imgBase64
+    ? [{ type: 'image', source: { type: 'base64', media_type: imgFile.type || 'image/jpeg', data: imgBase64 } }, { type: 'text', text: text || 'Analyze this image.' }]
+    : text;
   conversationHistory.push({ role: 'user', content: userContent });
 
   try {
-    let responseText = '';
-
     if (demoMode) {
-      responseText = getDemoResponse(text, hasImage);
-    } else if (!config.openaiKey) {
-      document.getElementById('configModal').classList.add('visible');
       removeTyping(typingId);
+      addMessage('bot', getDemoResponse(text, hasImage), null, null, 'text');
       return;
-    } else {
-      // Azure CV analysis for images (if configured)
-      let cvAnalysis = '';
-      if (hasImage && config.cvKey && config.cvEndpoint) {
-        try {
-          cvAnalysis = await analyzeWithAzureCV(imgBase64, imgFile.type);
-        } catch (e) {
-          cvAnalysis = '[Azure CV analysis unavailable]';
-        }
-      }
-
-      // Build OpenAI messages format
-      let messages = [{ role: 'system', content: SYSTEM_PROMPT }];
-
-      // Add conversation history (text only for history, last 8 turns)
-      const historyToSend = conversationHistory.slice(-9, -1); // exclude latest user msg
-      for (const m of historyToSend) {
-        if (typeof m.content === 'string') {
-          messages.push({ role: m.role, content: m.content });
-        } else if (Array.isArray(m.content) && m.role === 'assistant') {
-          messages.push({ role: 'assistant', content: m.content });
-        }
-      }
-
-      // Build current user message for OpenAI
-      let currentContent;
-      if (imgBase64) {
-        currentContent = [
-          { type: 'image_url', image_url: { url: `data:${imgFile.type || 'image/jpeg'};base64,${imgBase64}`, detail: 'high' } },
-          { type: 'text', text: (text || 'Please analyze this network KPI image and provide recommendations.') + (cvAnalysis ? `\n\n[Azure Computer Vision pre-analysis]: ${cvAnalysis}` : '') }
-        ];
-      } else {
-        currentContent = text;
-      }
-
-      messages.push({ role: 'user', content: currentContent });
-
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${config.openaiKey}` },
-        body: JSON.stringify({
-          model: 'gpt-4o-mini',
-          max_tokens: 1000,
-          messages: messages
-        })
-      });
-
-      const data = await response.json();
-      if (data.error) throw new Error(data.error.message);
-      responseText = data.choices[0].message.content;
     }
 
-    removeTyping(typingId);
-    conversationHistory.push({ role: 'assistant', content: responseText });
-    addMessage('bot', responseText, null, null, 'text');
+    // ── Route decision ────────────────────────────────────────────────────────
+    const useDataQuery = !hasImage && (
+      queryMode === 'data' ||
+      (queryMode === 'auto' && isDataQuery(text))
+    );
+
+    if (useDataQuery) {
+      // ── Flask API /query ──────────────────────────────────────────────────
+      const res = await fetch(`${config.flaskApi}/query`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question: text })
+      });
+      const data = await res.json();
+
+      if (data.error) throw new Error(data.error);
+
+      removeTyping(typingId);
+      renderDataResponse(data, text);
+
+    } else {
+      // ── Flask API /chat  (or OpenAI direct as fallback) ───────────────────
+      let responseText = '';
+
+      if (config.flaskApi) {
+        // Build history for /chat
+        const historyForChat = conversationHistory.slice(-9, -1)
+          .filter(m => typeof m.content === 'string')
+          .map(m => ({ role: m.role, content: m.content }));
+
+        let cvAnalysis = '';
+        if (hasImage && config.cvKey && config.cvEndpoint) {
+          try { cvAnalysis = await analyzeWithAzureCV(imgBase64, imgFile.type); }
+          catch { cvAnalysis = ''; }
+        }
+
+        const messageText = text + (cvAnalysis ? `\n\n[Azure CV Analysis]: ${cvAnalysis}` : '');
+
+        const res = await fetch(`${config.flaskApi}/chat`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: messageText, history: historyForChat })
+        });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+        responseText = data.response;
+
+      } else if (config.openaiKey) {
+        // Fallback: direct OpenAI call
+        let cvAnalysis = '';
+        if (hasImage && config.cvKey && config.cvEndpoint) {
+          try { cvAnalysis = await analyzeWithAzureCV(imgBase64, imgFile.type); }
+          catch { cvAnalysis = ''; }
+        }
+        let messages = [{ role: 'system', content: SYSTEM_PROMPT }];
+        const historyToSend = conversationHistory.slice(-9, -1);
+        for (const m of historyToSend) {
+          if (typeof m.content === 'string') messages.push({ role: m.role, content: m.content });
+        }
+        let currentContent = imgBase64
+          ? [{ type: 'image_url', image_url: { url: `data:${imgFile.type||'image/jpeg'};base64,${imgBase64}`, detail: 'high' } },
+             { type: 'text', text: (text||'Analyze image.') + (cvAnalysis ? `\n\n[Azure CV]: ${cvAnalysis}` : '') }]
+          : text;
+        messages.push({ role: 'user', content: currentContent });
+        const r = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${config.openaiKey}` },
+          body: JSON.stringify({ model: 'gpt-4o-mini', max_tokens: 1000, messages })
+        });
+        const d = await r.json();
+        if (d.error) throw new Error(d.error.message);
+        responseText = d.choices[0].message.content;
+      } else {
+        document.getElementById('configModal').classList.add('visible');
+        removeTyping(typingId);
+        return;
+      }
+
+      removeTyping(typingId);
+      conversationHistory.push({ role: 'assistant', content: responseText });
+      addMessage('bot', responseText, null, null, modalityTag);
+    }
 
   } catch (err) {
     removeTyping(typingId);
     addMessage('bot', `⚠ Error: ${err.message}`, null, null, 'text');
   }
+}
+
+// ─── Render Carbon data response ──────────────────────────────────────────────
+let chartInstances = {};
+
+function renderDataResponse(data, question) {
+  const chatArea = document.getElementById('chatArea');
+  const msg = document.createElement('div');
+  msg.className = 'message bot';
+
+  const avatar = document.createElement('div');
+  avatar.className = 'avatar bot';
+  avatar.textContent = '🤖';
+
+  const bubbleWrap = document.createElement('div');
+  bubbleWrap.style.maxWidth = '85%';
+
+  // SQL pill
+  const sqlPill = document.createElement('div');
+  sqlPill.className = 'sql-pill';
+  sqlPill.innerHTML = `<strong>SQL:</strong> ${escapeHtml(data.sql)}`;
+
+  // Summary bubble
+  const bubble = document.createElement('div');
+  bubble.className = 'bubble';
+  bubble.innerHTML = formatText(data.summary || 'Query completed.');
+
+  const meta = document.createElement('div');
+  meta.className = 'bubble-meta';
+  meta.innerHTML = `<span class="modality-tag tag-text">📊 data</span><span>${new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</span>`;
+  bubble.appendChild(meta);
+
+  bubbleWrap.appendChild(sqlPill);
+  bubbleWrap.appendChild(bubble);
+
+  // Chart (if API returned chart_data)
+  if (data.chart_data && data.chart_data.data && data.chart_data.data.labels) {
+    const chartWrap = document.createElement('div');
+    chartWrap.className = 'chart-wrap';
+    const canvas = document.createElement('canvas');
+    const chartId = 'chart-' + Date.now();
+    canvas.id = chartId;
+    canvas.height = 200;
+    chartWrap.appendChild(canvas);
+    bubbleWrap.appendChild(chartWrap);
+
+    setTimeout(() => {
+      if (chartInstances[chartId]) chartInstances[chartId].destroy();
+      chartInstances[chartId] = new Chart(
+        document.getElementById(chartId),
+        { type: data.chart_data.type || 'line',
+          data: data.chart_data.data,
+          options: data.chart_data.options || {} }
+      );
+    }, 100);
+  }
+
+  // Data table (up to 20 rows preview)
+  if (data.columns && data.rows && data.rows.length > 0) {
+    const tableWrap = document.createElement('div');
+    tableWrap.className = 'data-table-wrap';
+
+    const previewRows = data.rows.slice(0, 20);
+    let tableHtml = `<table class="data-table"><thead><tr>`;
+    data.columns.forEach(c => { tableHtml += `<th>${escapeHtml(c)}</th>`; });
+    tableHtml += `</tr></thead><tbody>`;
+    previewRows.forEach(row => {
+      tableHtml += '<tr>';
+      row.forEach(cell => { tableHtml += `<td>${escapeHtml(String(cell ?? ''))}</td>`; });
+      tableHtml += '</tr>';
+    });
+    tableHtml += `</tbody></table>`;
+    tableHtml += `<div class="row-count">${data.row_count} row${data.row_count !== 1 ? 's' : ''} returned${data.row_count > 20 ? ' · showing first 20' : ''}</div>`;
+
+    tableWrap.innerHTML = tableHtml;
+    bubbleWrap.appendChild(tableWrap);
+  }
+
+  msg.appendChild(avatar);
+  msg.appendChild(bubbleWrap);
+  chatArea.appendChild(msg);
+  chatArea.scrollTop = chatArea.scrollHeight;
+
+  conversationHistory.push({ role: 'assistant', content: data.summary || 'Data query completed.' });
+}
+
+function escapeHtml(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
 // ─── Azure Computer Vision ────────────────────────────────────────────────────
@@ -1368,6 +1596,8 @@ function showToast(msg) {
 }
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
+// Ping Carbon API on load (works if on Omantel internal network)
+pingCarbonApi();
 // Azure Speech SDK loaded via CDN — status shown after config saved
 </script>
 </body>
