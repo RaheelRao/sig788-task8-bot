@@ -52,7 +52,7 @@
     background-size: cover;
     background-position: center 40%;
     background-repeat: no-repeat;
-    opacity: 0.18;
+    opacity: 0.38;
     pointer-events: none;
     z-index: 0;
   }
@@ -64,11 +64,11 @@
     inset: 0;
     background:
       linear-gradient(to bottom,
-        rgba(4,8,15,0.88) 0%,
-        rgba(4,8,15,0.70) 40%,
-        rgba(4,8,15,0.82) 100%),
-      radial-gradient(ellipse at 80% 20%, rgba(0,119,182,0.08) 0%, transparent 60%),
-      radial-gradient(ellipse at 20% 80%, rgba(245,166,35,0.05) 0%, transparent 50%);
+        rgba(4,8,15,0.60) 0%,
+        rgba(4,8,15,0.42) 40%,
+        rgba(4,8,15,0.58) 100%),
+      radial-gradient(ellipse at 80% 20%, rgba(0,119,182,0.06) 0%, transparent 60%),
+      radial-gradient(ellipse at 20% 80%, rgba(245,166,35,0.04) 0%, transparent 50%);
     pointer-events: none;
     z-index: 0;
   }
@@ -132,19 +132,6 @@
     align-items: center;
   }
 
-  .badge {
-    padding: 4px 10px;
-    border-radius: 20px;
-    font-size: 11px;
-    font-family: var(--font-mono);
-    font-weight: 700;
-    letter-spacing: 0.5px;
-    border: 1px solid;
-  }
-
-  .badge-azure { color: var(--accent); border-color: rgba(0,212,255,0.3); background: rgba(0,212,255,0.08); }
-  .badge-live { color: var(--accent3); border-color: rgba(0,255,157,0.3); background: rgba(0,255,157,0.08); }
-  .badge-live::before { content: '● '; font-size: 8px; }
 
   /* Main layout */
   .app {
@@ -248,9 +235,12 @@
 
   .welcome p {
     color: var(--text-muted);
-    font-size: 14px;
+    font-size: 13px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    font-family: var(--font-mono);
     max-width: 500px;
-    margin: 0 auto 28px;
+    margin: 0 auto 32px;
     line-height: 1.6;
   }
 
@@ -879,74 +869,20 @@
       <div class="logo-sub">Customer Experience Intelligence</div>
     </div>
   </div>
-  <div class="header-badges">
-    <span class="badge badge-azure">Azure CV + Speech</span>
-    <span class="badge badge-live">● Live</span>
-  </div>
+
 </header>
 
 <!-- App -->
 <div class="app">
-
-  <!-- Status Bar -->
-  <div class="status-bar">
-    <div class="status-item">
-      <div class="status-dot active" id="dot-llm"></div>
-      <span id="label-llm">OpenAI GPT-4o-mini</span>
-    </div>
-    <div class="status-item">
-      <div class="status-dot warn" id="dot-cv"></div>
-      <span id="label-cv">Azure CV (not configured)</span>
-    </div>
-    <div class="status-item">
-      <div class="status-dot warn" id="dot-speech"></div>
-      <span id="label-speech">Azure Speech (not configured)</span>
-    </div>
-    <div class="status-item">
-      <div class="status-dot warn" id="dot-carbon"></div>
-      <span id="label-carbon">Carbon DB (not tested)</span>
-    </div>
-    <div class="status-item">
-    </div>
-    <div class="status-item">
-      <div class="status-dot error"></div>
-      <span>Azure Static Web App (policy blocked)</span>
-    </div>
-  </div>
 
   <!-- Chat Area -->
   <div class="chat-area" id="chatArea">
     <div class="welcome" id="welcome">
       <div class="welcome-icon">🛰</div>
       <h1>SPECTRA</h1>
-      <p>Full-spectrum customer experience intelligence powered by live Carbon data, Azure AI Services, and GPT-4o-mini. Query subscribers, KPIs, trends — by voice, text, or image.</p>
+      <p>Full-spectrum customer experience intelligence</p>
 
-      <div class="capability-grid">
-        <div class="capability-card">
-          <div class="icon">💬</div>
-          <div class="title">Text Advisory</div>
-          <div class="desc">Ask network questions, get AI-driven recommendations</div>
-        </div>
-        <div class="capability-card">
-          <div class="icon">🎙</div>
-          <div class="title">Voice Input</div>
-          <div class="desc">Speak your query using Browser Web Speech API</div>
-        </div>
-        <div class="capability-card">
-          <div class="icon">🖼</div>
-          <div class="title">Image Analysis</div>
-          <div class="desc">Upload KPI charts for Azure Computer Vision analysis</div>
-        </div>
-      </div>
 
-      <div class="suggestion-chips">
-        <div class="chip" onclick="sendSuggestion(this)">How many subscribers are in the table?</div>
-        <div class="chip" onclick="sendSuggestion(this)">Show average CEI score by region</div>
-        <div class="chip" onclick="sendSuggestion(this)">Top 10 subscribers by 5G traffic last 7 days</div>
-        <div class="chip" onclick="sendSuggestion(this)">Why is VoLTE drop rate high in cluster?</div>
-        <div class="chip" onclick="sendSuggestion(this)">Best practices for 5G NR congestion management</div>
-        <div class="chip" onclick="sendSuggestion(this)">Compare 4G vs 5G traffic by willayat</div>
-      </div>
     </div>
   </div>
 
