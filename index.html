@@ -1293,6 +1293,16 @@ async function sendMessage(modality = 'text') {
       if (data.error) throw new Error(data.error);
 
       removeTyping(typingId);
+
+      // Bot needs clarification before querying
+      if (data.needs_clarification) {
+        conversationHistory.push({ role: 'assistant', content: data.question });
+        addMessage('bot', '❓ ' + data.question, null, null, 'text');
+        // Pre-focus input so user can answer immediately
+        document.getElementById('inputBox').focus();
+        return;
+      }
+
       renderDataResponse(data, text);
 
     } else {
