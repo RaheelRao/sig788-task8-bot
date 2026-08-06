@@ -193,13 +193,14 @@
     flex-direction: column;
     gap: 16px;
     scrollbar-width: thin;
-    scrollbar-color: var(--border) transparent;
+    scrollbar-color: rgba(185,90,0,0.75) transparent;
     min-height: 0;
   }
 
-  .chat-area::-webkit-scrollbar { width: 4px; }
-  .chat-area::-webkit-scrollbar-track { background: transparent; }
-  .chat-area::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+  .chat-area::-webkit-scrollbar { width: 6px; }
+  .chat-area::-webkit-scrollbar-track { background: rgba(4,8,15,0.4); }
+  .chat-area::-webkit-scrollbar-thumb { background: rgba(185,90,0,0.75); border-radius: 4px; }
+  .chat-area::-webkit-scrollbar-thumb:hover { background: rgba(245,120,0,0.95); }
 
   /* Welcome screen */
   .welcome {
@@ -425,7 +426,7 @@
   .typing-dots span {
     width: 7px;
     height: 7px;
-    background: var(--accent);
+    background: #F5A623;
     border-radius: 50%;
     animation: bounce 1.2s infinite;
   }
@@ -1423,11 +1424,20 @@ function renderDataResponse(data, question) {
 
     setTimeout(() => {
       if (chartInstances[chartId]) chartInstances[chartId].destroy();
-      chartInstances[chartId] = new Chart(
+      // Apply compact number formatting to Y axis
+    const chartOpts = data.chart_data.options || {};
+    if (chartOpts.scales && chartOpts.scales.y && chartOpts.scales.y.ticks) {
+      chartOpts.scales.y.ticks.callback = function(value) {
+        if (value >= 1000000) return (value/1000000).toFixed(1) + 'M';
+        if (value >= 1000)    return (value/1000).toFixed(0) + 'K';
+        return value;
+      };
+    }
+    chartInstances[chartId] = new Chart(
         document.getElementById(chartId),
-        { type: data.chart_data.type || 'line',
+        { type: data.chart_data.type || 'bar',
           data: data.chart_data.data,
-          options: data.chart_data.options || {} }
+          options: chartOpts }
       );
     }, 100);
   }
